@@ -1,52 +1,36 @@
-package Hubot::Scripts::perlstudy;
+package Hubot::Scripts::memo;
 
-use utf8;
 use strict;
 use warnings;
-use Encode;
-use LWP::UserAgent;
 use Data::Printer;
+use DateTime;
 use AnyEvent::DateTime::Cron;
+use RedisDB;
 
-my $cron = AnyEvent::DateTime::Cron->new(time_zone => 'local');
+my $cron = AnyEvent::DateTime::Cron->new(time_zone => 'Asia/Seoul');
+my $redis = RedisDB->new(host => 'localhost', port => 6379);
 
 sub load {
     my ( $class, $robot ) = @_;
-    my $flag = 'off';
  
     $robot->hear(
-        qr/^perlstudy:? on *$/i,    
-        sub {
-            my $msg = shift;
-            my $user_input = $msg->match->[0];
-            $msg->send('It has been started monitoring [cafe-perlstudy]...');
-
-           $cron->add ( '*/10 * * * *' => sub {
-                    $msg->http("http://cafe.naver.com/MyCafeIntro.nhn?clubid=18062050")->get(
-                        sub {
-                            my ( $body, $hdr ) = @_;
-                            return if ( !$body || $hdr->{Status} !~ /^2/ );
-
-                            my $decode_body = decode ("euc-kr", $body);
-
-
-    $robot->hear(
-            qr/^perlstudy:? (?:off|finsh) *$/i,
+            qr/^memo (.+)/i,
 
             sub {
                 my $msg = shift;
-                $cron->stop;
-                $msg->send('It has been stoped monitoring [cafe-perlstudy]...');
-                $flag = 'off';
-            }
-    );
 
-    $robot->hear(
-            qr/^perlstudy:? status *$/i,    
+                my $user = $msg->message->user->{name};
+                my $user_memo = $msg->match->[0];
+                my $dt = DateTime->now( time_zone => 'Asia/Seoul' );
+                print $dt->ymd;
 
-            sub {
-                my $msg = shift;
-                $msg->send("perlstudy status is [$flag] ...");
+=pod
+                $robot->brain->{data}{memo}{$user}{ +time } = 
+                    [ $user, $user_memo, $dt->ymd . " " . $dt->hms ];
+                $msg->send("$user_memo". "  $user");
+                $msg->send($robot->brain->{data}{memo}{$user}{ +time}->[1]. "  $user");
+=cut
+                
             }
     );
 }
@@ -59,6 +43,11 @@ sub load {
     Hubot::Scripts::memo
  
 =head1 SYNOPSIS
+
+    naver perl cafe (new issue) monitoring.
+    perlstudy on - naver cafe(perlstudy) to start monitoring.
+    perlstudy off|finsh - naver cafe(perlstudy) to stop monitoring.
+    perlstudy status - naver cafe(perlstudy) status.
  
 =head1 AUTHOR
 
