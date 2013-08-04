@@ -1,5 +1,6 @@
 package Hubot::Scripts::memo;
 
+use 5.010;
 use strict;
 use warnings;
 use Data::Printer;
@@ -14,23 +15,38 @@ sub load {
     my ( $class, $robot ) = @_;
  
     $robot->hear(
-            qr/^memo (.+)/i,
+            qr/^memo (.*?) (.+)/i,
 
             sub {
                 my $msg = shift;
 
-                my $user = $msg->message->user->{name};
-                my $user_memo = $msg->match->[0];
+                my $sender = $msg->message->user->{name};
+                my $reserv_time = $msg->match->[0];
+                my $user_memo = $msg->match->[1];
                 my $dt = DateTime->now( time_zone => 'Asia/Seoul' );
-                print $dt->ymd;
+                my $ymd = $dt->ymd;
+                my $year = $dt->year;
+                my $month = $dt->month;
+                my $day = $dt->day;
+                my $hour = $dt->hour;
+                my $min = $dt->minute;
+                my $now_time;
 
-=pod
-                $robot->brain->{data}{memo}{$user}{ +time } = 
-                    [ $user, $user_memo, $dt->ymd . " " . $dt->hms ];
-                $msg->send("$user_memo". "  $user");
-                $msg->send($robot->brain->{data}{memo}{$user}{ +time}->[1]. "  $user");
-=cut
-                
+                given ($reserv_time) {
+                    when ( /^\d\d\d\d\-\d\d\-\d\d\-\d\d:\d\d$/ ) { 
+                        $now_time = $reserv_time }
+                    when ( /^\d\d\-\d\d\-\d\d:\d\d$/ ) { 
+                        $now_time = "$year"."-$reserv_time" }
+                    when ( /^\d\d\:\d\d$/ ) { 
+                        $now_time = "$year"."-$month"."-$day"."-$reserv_time" }
+                    default { $msg->send( "Time format is wrong!") }
+                }
+
+                if (defined($now_time)) {
+                    $msg->send($sender);
+                    $msg->send($now_time);
+                    $msg->send($user_memo);
+                }
             }
     );
 }
@@ -44,11 +60,6 @@ sub load {
  
 =head1 SYNOPSIS
 
-    naver perl cafe (new issue) monitoring.
-    perlstudy on - naver cafe(perlstudy) to start monitoring.
-    perlstudy off|finsh - naver cafe(perlstudy) to stop monitoring.
-    perlstudy status - naver cafe(perlstudy) status.
- 
 =head1 AUTHOR
 
     YunChang Kang <codenewb@gmail.com>
