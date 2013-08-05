@@ -10,43 +10,77 @@ use RedisDB;
 
 my $cron = AnyEvent::DateTime::Cron->new(time_zone => 'Asia/Seoul');
 my $redis = RedisDB->new(host => 'localhost', port => 6379);
+my $gm_msg = 'Good Moring Perlmongers!';
+my $ga_msg = '다들 맞점하세요!';
+my $gn_msg = '칼퇴근 합시다!';
 
 sub load {
     my ( $class, $robot ) = @_;
+    my $flag = 'off';
  
     $robot->hear(
-            qr/^memo (.*?) (.+)/i,
+        qr/^memo (.*?) (.+)/i,
+
+        sub {
+            my $msg = shift;
+
+            $msg->send('Start Cron');
+
+                sub {
+                    my $sender = $msg->message->user->{name};
+                    my $reserv_time = $msg->match->[0];
+                    my $user_memo = $msg->match->[1];
+
+                    my $dt = DateTime->now( time_zone => 'Asia/Seoul' );
+                    my $ymd = $dt->ymd;
+                    my $year = $dt->year;
+                    my $month = $dt->month;
+                    my $day = $dt->day;
+                    my $hour = $dt->hour;
+                    my $min = $dt->minute;
+                    my $now_time;
+
+                    given ($reserv_time) {
+                        when ( /^\d\d\d\d\-\d\d\-\d\d\-\d\d:\d\d$/ ) { 
+                            $now_time = $reserv_time }
+                        when ( /^\d\d\-\d\d\-\d\d:\d\d$/ ) { 
+                            $now_time = "$year"."-$reserv_time" }
+                        when ( /^\d\d\:\d\d$/ ) { 
+                            $now_time = "$year"."-$month"."-$day"."-$reserv_time" }
+                        default { $msg->send( "Time format is wrong!") }
+                    }
+
+                    if (defined($now_time)) {
+                        $msg->send($sender);
+                        $msg->send($now_time);
+                        $msg->send($user_memo);
+                    }
+                }
+        }
+    );
+
+    $robot->hear(
+        qr/^memo:? on *$/i,
+
+            sub {
+                    my $msg = shift;
+
+                    $msg->send('Memo Polling Start ...');
+                    $cron->add( '*/1 * * * *'  => sub {
+                        $msg->send($gm_msg);
+                    }
+                );
+                $cron->start;
+                $flag = 'on';
+            }
+    );
+
+    $robot->hear(
+        qr/^memo:? status *$/i,    
 
             sub {
                 my $msg = shift;
-
-                my $sender = $msg->message->user->{name};
-                my $reserv_time = $msg->match->[0];
-                my $user_memo = $msg->match->[1];
-                my $dt = DateTime->now( time_zone => 'Asia/Seoul' );
-                my $ymd = $dt->ymd;
-                my $year = $dt->year;
-                my $month = $dt->month;
-                my $day = $dt->day;
-                my $hour = $dt->hour;
-                my $min = $dt->minute;
-                my $now_time;
-
-                given ($reserv_time) {
-                    when ( /^\d\d\d\d\-\d\d\-\d\d\-\d\d:\d\d$/ ) { 
-                        $now_time = $reserv_time }
-                    when ( /^\d\d\-\d\d\-\d\d:\d\d$/ ) { 
-                        $now_time = "$year"."-$reserv_time" }
-                    when ( /^\d\d\:\d\d$/ ) { 
-                        $now_time = "$year"."-$month"."-$day"."-$reserv_time" }
-                    default { $msg->send( "Time format is wrong!") }
-                }
-
-                if (defined($now_time)) {
-                    $msg->send($sender);
-                    $msg->send($now_time);
-                    $msg->send($user_memo);
-                }
+                $msg->send("memo status is [$flag] ...");
             }
     );
 }
