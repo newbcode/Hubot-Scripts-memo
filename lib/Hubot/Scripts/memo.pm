@@ -3,6 +3,7 @@ package Hubot::Scripts::memo;
 use 5.010;
 use strict;
 use warnings;
+use utf8;
 use Data::Printer;
 use DateTime;
 use AnyEvent::DateTime::Cron;
@@ -11,51 +12,51 @@ use RedisDB;
 my $cron = AnyEvent::DateTime::Cron->new(time_zone => 'Asia/Seoul');
 my $redis = RedisDB->new(host => 'localhost', port => 6379);
 my $gm_msg = 'Good Moring Perlmongers!';
-my $ga_msg = '다들 맞점하세요!';
-my $gn_msg = '칼퇴근 합시다!';
 
 sub load {
     my ( $class, $robot ) = @_;
+    
     my $flag = 'off';
- 
+    my $memo_time;
+
     $robot->hear(
         qr/^memo (.*?) (.+)/i,
 
         sub {
             my $msg = shift;
 
-            $msg->send('Start Cron');
+            my $jotter = $msg->message->user->{name};
+            my $reserv_time = $msg->match->[0];
+            my $user_memo = $msg->match->[1];
 
-                sub {
-                    my $sender = $msg->message->user->{name};
-                    my $reserv_time = $msg->match->[0];
-                    my $user_memo = $msg->match->[1];
+            my $dt = DateTime->now( time_zone => 'Asia/Seoul' );
+            my $ymd = $dt->ymd;
+            my $year = $dt->year;
+            my $month = $dt->month;
+            my $day = $dt->day;
+            my $hour = $dt->hour;
+            my $min = $dt->minute;
 
-                    my $dt = DateTime->now( time_zone => 'Asia/Seoul' );
-                    my $ymd = $dt->ymd;
-                    my $year = $dt->year;
-                    my $month = $dt->month;
-                    my $day = $dt->day;
-                    my $hour = $dt->hour;
-                    my $min = $dt->minute;
-                    my $now_time;
+            if ( $month < 10 ) { $month = "0"."$month"; }
+            if ( $day < 10 ) { $day = "0"."$day"; }
+            if ( $hour < 10 ) { $hour = "0"."$hour"; }
+            if ( $min < 10 ) { $min = "0"."$min"; }
 
-                    given ($reserv_time) {
-                        when ( /^\d\d\d\d\-\d\d\-\d\d\-\d\d:\d\d$/ ) { 
-                            $now_time = $reserv_time }
-                        when ( /^\d\d\-\d\d\-\d\d:\d\d$/ ) { 
-                            $now_time = "$year"."-$reserv_time" }
-                        when ( /^\d\d\:\d\d$/ ) { 
-                            $now_time = "$year"."-$month"."-$day"."-$reserv_time" }
-                        default { $msg->send( "Time format is wrong!") }
-                    }
+            given ($reserv_time) {
+                when ( /^\d\d\d\d\-\d\d\-\d\d\-\d\d:\d\d$/ ) { 
+                    $memo_time = $reserv_time }
+                when ( /^\d\d\-\d\d\-\d\d:\d\d$/ ) { 
+                    $memo_time = "$year"."-$reserv_time" }
+                when ( /^\d\d\:\d\d$/ ) { 
+                    $memo_time = "$year"."-$month"."-$day"."-$reserv_time" }
+                default { $msg->send( "Time format is wrong!") }
+            }
 
-                    if (defined($now_time)) {
-                        $msg->send($sender);
-                        $msg->send($now_time);
-                        $msg->send($user_memo);
-                    }
-                }
+            $redis->hmset("$memo_time", 'content', "$user_memo", 'jotter', "$jotter");
+            if ( $memo_time ) { $msg->send('Save Memo has been completed') };
+
+            my $show_memo = $redis->hmget("$memo_time", 'content', 'jotter');
+            $redis->bgsave;
         }
     );
 
@@ -64,10 +65,33 @@ sub load {
 
             sub {
                     my $msg = shift;
+            
+                    $msg->send('It has been started memo tracking ...');
 
-                    $msg->send('Memo Polling Start ...');
                     $cron->add( '*/1 * * * *'  => sub {
-                        $msg->send($gm_msg);
+                        my $dt = DateTime->now( time_zone => 'Asia/Seoul' );
+                        my $ymd = $dt->ymd;
+                        my $year = $dt->year;
+                        my $month = $dt->month;
+                        my $day = $dt->day;
+                        my $hour = $dt->hour;
+                        my $min = $dt->minute;
+
+                        if ( $month < 10 ) { $month = "0"."$month"; }
+                        if ( $day < 10 ) { $day = "0"."$day"; }
+                        if ( $hour < 10 ) { $hour = "0"."$hour"; }
+                        if ( $min < 10 ) { $min = "0"."$min"; }
+
+                        my $now_time = "$ymd".'-'."$hour".':'."$min";
+
+                        $msg->send('system time'."  $now_time");
+                        $msg->send('memo_time'."   $memo_time");
+
+                        if ( $now_time eq $memo_time ) {
+                            my $show_memo = $redis->hmget("$memo_time", 'content', 'jotter');
+                            $msg->send($show_memo->[0]);
+                            $msg->send($show_memo->[1]);
+                        }
                     }
                 );
                 $cron->start;
