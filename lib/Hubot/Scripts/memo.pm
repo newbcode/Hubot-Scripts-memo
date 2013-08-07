@@ -11,7 +11,6 @@ use RedisDB;
 
 my $cron = AnyEvent::DateTime::Cron->new(time_zone => 'Asia/Seoul');
 my $redis = RedisDB->new(host => 'localhost', port => 6379);
-my $gm_msg = 'Good Moring Perlmongers!';
 
 sub load {
     my ( $class, $robot ) = @_;
@@ -53,9 +52,10 @@ sub load {
             }
 
             $redis->hmset("$memo_time", 'content', "$user_memo", 'jotter', "$jotter");
-            if ( $memo_time ) { $msg->send('Save Memo has been completed') };
+            if ( $memo_time ) { $msg->send('Save Memo has been completed!') };
 
             my $show_memo = $redis->hmget("$memo_time", 'content', 'jotter');
+            $msg->send($show_memo->[0]);
             $redis->bgsave;
         }
     );
@@ -66,7 +66,7 @@ sub load {
             sub {
                     my $msg = shift;
             
-                    $msg->send('It has been started memo tracking ...');
+                    $msg->send('It has been started memobot viewer ...');
 
                     $cron->add( '*/1 * * * *'  => sub {
                         my $dt = DateTime->now( time_zone => 'Asia/Seoul' );
@@ -89,8 +89,8 @@ sub load {
 
                         if ( $now_time eq $memo_time ) {
                             my $show_memo = $redis->hmget("$memo_time", 'content', 'jotter');
-                            $msg->send($show_memo->[0]);
-                            $msg->send($show_memo->[1]);
+                            $msg->send("Jotter: $show_memo->[1]"."Memo-Time: $memo_time"); 
+                            $msg->send("Memo: $show_memo->[0]");
                         }
                     }
                 );
@@ -104,7 +104,7 @@ sub load {
 
             sub {
                 my $msg = shift;
-                $msg->send("memo status is [$flag] ...");
+                $msg->send("memobot status is [$flag] ...");
             }
     );
 }
