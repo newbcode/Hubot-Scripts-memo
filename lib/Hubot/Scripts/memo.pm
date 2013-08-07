@@ -9,12 +9,11 @@ use DateTime;
 use AnyEvent::DateTime::Cron;
 use RedisDB;
 
-my $cron = AnyEvent::DateTime::Cron->new(time_zone => 'Asia/Seoul');
-my $redis = RedisDB->new(host => 'localhost', port => 6379);
-
 sub load {
     my ( $class, $robot ) = @_;
     
+    my $cron = AnyEvent::DateTime::Cron->new(time_zone => 'Asia/Seoul');
+    my $redis = RedisDB->new(host => 'localhost', port => 6379);
     my $flag = 'off';
     my $memo_time;
 
@@ -29,12 +28,7 @@ sub load {
             my $user_memo = $msg->match->[1];
 
             my $dt = DateTime->now( time_zone => 'Asia/Seoul' );
-            my $ymd = $dt->ymd;
-            my $year = $dt->year;
-            my $month = $dt->month;
-            my $day = $dt->day;
-            my $hour = $dt->hour;
-            my $min = $dt->minute;
+            my ($ymd, $year, $month, $day, $hour, $min ) = ($dt->ymd, $dt->year, $dt->month, $dt->day, $dt->hour, $dt->min);
 
             if ( $month < 10 ) { $month = "0"."$month"; }
             if ( $day < 10 ) { $day = "0"."$day"; }
@@ -55,7 +49,6 @@ sub load {
             if ( $memo_time ) { $msg->send('Save Memo has been completed!') };
 
             my $show_memo = $redis->hmget("$memo_time", 'content', 'jotter');
-            $msg->send($show_memo->[0]);
             $redis->bgsave;
         }
     );
@@ -70,12 +63,7 @@ sub load {
 
                     $cron->add( '*/1 * * * *'  => sub {
                         my $dt = DateTime->now( time_zone => 'Asia/Seoul' );
-                        my $ymd = $dt->ymd;
-                        my $year = $dt->year;
-                        my $month = $dt->month;
-                        my $day = $dt->day;
-                        my $hour = $dt->hour;
-                        my $min = $dt->minute;
+                        my ($ymd, $year, $month, $day, $hour, $min ) = ($dt->ymd, $dt->year, $dt->month, $dt->day, $dt->hour, $dt->min);
 
                         if ( $month < 10 ) { $month = "0"."$month"; }
                         if ( $day < 10 ) { $day = "0"."$day"; }
@@ -84,12 +72,12 @@ sub load {
 
                         my $now_time = "$ymd".'-'."$hour".':'."$min";
 
-                        $msg->send('system time'."  $now_time");
-                        $msg->send('memo_time'."   $memo_time");
+                        $msg->send('system_time'."  $now_time");
+                        $msg->send('memo_time'."  $memo_time");
 
                         if ( $now_time eq $memo_time ) {
                             my $show_memo = $redis->hmget("$memo_time", 'content', 'jotter');
-                            $msg->send("Jotter: $show_memo->[1]"."Memo-Time: $memo_time"); 
+                            $msg->send("Jotter: $show_memo->[1]"." Memo-Time: $memo_time"); 
                             $msg->send("Memo: $show_memo->[0]");
                         }
                     }
