@@ -36,12 +36,9 @@ sub load {
             if ( $min < 10 ) { $min = "0"."$min"; }
 
             given ($reserv_time) {
-                when ( /^\d\d\d\d\-\d\d\-\d\d\-\d\d:\d\d$/ ) { 
-                    $memo_time = $reserv_time }
-                when ( /^\d\d\-\d\d\-\d\d:\d\d$/ ) { 
-                    $memo_time = "$year"."-$reserv_time" }
-                when ( /^\d\d\:\d\d$/ ) { 
-                    $memo_time = "$year"."-$month"."-$day"."-$reserv_time" }
+                when ( /^\d\d\d\d\-\d\d\-\d\d\-\d\d:\d\d$/ ) { $memo_time = $reserv_time }
+                when ( /^\d\d\-\d\d\-\d\d:\d\d$/ ) { $memo_time = "$year"."-$reserv_time" }
+                when ( /^\d\d\:\d\d$/ ) { $memo_time = "$year"."-$month"."-$day"."-$reserv_time" }
                 default { $memo_time = 'wrong' }
             }
 
@@ -78,9 +75,15 @@ sub load {
                         if ( $min < 10 ) { $min = "0"."$min"; }
 
                         my $now_time = "$ymd".'-'."$hour".':'."$min";
-
                         my $memo_ref = $redis->hkeys("memo_log");
                         my @memo_keys = @${memo_ref};
+
+                        given ($now_time) {
+                        when ( /^\d\d\d\d\-\d\d\-\d\d\-09:00$/ ) { $msg->send("$gm_msg"); }
+                        when ( /^\d\d\d\d\-\d\d\-\d\d\-12:00$/ ) { $msg->send("$ga_msg"); }
+                        when ( /^\d\d\d\d\-\d\d\-\d\d\-18:00$/ ) { $msg->send("$gn_msg"); }
+                        default { $memo_time = 'wrong' }
+                        }
 
                         foreach my $memo_key ( @memo_keys ) {
                             if ( $now_time eq $memo_key ) {
