@@ -1,9 +1,10 @@
 package Hubot::Scripts::memo;
 
 use 5.010;
+use utf8;
 use strict;
 use warnings;
-use utf8;
+use Encode qw(encode decode);
 use Data::Printer;
 use DateTime;
 use AnyEvent::DateTime::Cron;
@@ -48,7 +49,6 @@ sub load {
             $redis->hmset("$memo_time", 'content', "$user_memo", 'jotter', "$jotter");
             if ( $memo_time ) { $msg->send('Save Memo has been completed!') };
 
-            my $show_memo = $redis->hmget("$memo_time", 'content', 'jotter');
             $redis->bgsave;
         }
     );
@@ -72,13 +72,11 @@ sub load {
 
                         my $now_time = "$ymd".'-'."$hour".':'."$min";
 
-                        $msg->send('system_time'."  $now_time");
-                        $msg->send('memo_time'."  $memo_time");
-
                         if ( $now_time eq $memo_time ) {
                             my $show_memo = $redis->hmget("$memo_time", 'content', 'jotter');
+                            my $content_decode = decode("utf-8", $show_memo->[0]);
                             $msg->send("Jotter: $show_memo->[1]"." Memo-Time: $memo_time"); 
-                            $msg->send("Memo: $show_memo->[0]");
+                            $msg->send("Memo: $content_decode");
                         }
                     }
                 );
