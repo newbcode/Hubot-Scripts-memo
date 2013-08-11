@@ -37,18 +37,19 @@ sub load {
             if ( $min < 10 ) { $min = "0"."$min"; }
 
             given ($reserv_time) {
-                when ( /^\d\d\d\d\-\d\d\-\d\d\-\d\d:\d\d$/ ) { 
-                    $memo_time = $reserv_time }
-                when ( /^\d\d\-\d\d\-\d\d:\d\d$/ ) { 
-                    $memo_time = "$year"."-$reserv_time" }
-                when ( /^\d\d\:\d\d$/ ) { 
-                    $memo_time = "$year"."-$month"."-$day"."-$reserv_time" }
-                default { $msg->send( "Time format is wrong!") }
+                when ( /^\d\d\d\d\-\d\d\-\d\d\-\d\d:\d\d$/ ) { $memo_time = $reserv_time }
+                when ( /^\d\d\-\d\d\-\d\d:\d\d$/ ) { $memo_time = "$year"."-$reserv_time" }
+                when ( /^\d\d\:\d\d$/ ) { $memo_time = "$year"."-$month"."-$day"."-$reserv_time" }
+                default { $memo_time = 'wrong' }
             }
 
-            $redis->hmset("$memo_time", 'content', "$user_memo", 'jotter', "$jotter");
-            if ( $memo_time ) { $msg->send('Save Memo has been completed!') };
-
+            if ( $memo_time eq 'wrong' ) { 
+                $msg->send( "Time format is wrong!");
+            }
+            else {
+                $redis->hmset("memo_log", "$memo_time", "Jotter: $jotter Time:$memo_time\nMemo: $user_memo");
+                $msg->send('Save Memo has been completed!');
+            }
             $redis->bgsave;
         }
     );
@@ -59,6 +60,10 @@ sub load {
             sub {
                     my $msg = shift;
             
+                    my $gm_msg = 'Good moring Seoul.pm !';
+                    my $ga_msg = '다들 맛점 하세욤 ♥';
+                    my $gn_msg = 'Come Home Hurry Up !!!';
+
                     $msg->send('It has been started memobot viewer ...');
 
                     $cron->add( '*/1 * * * *'  => sub {
@@ -71,12 +76,22 @@ sub load {
                         if ( $min < 10 ) { $min = "0"."$min"; }
 
                         my $now_time = "$ymd".'-'."$hour".':'."$min";
+                        my $memo_ref = $redis->hkeys("memo_log");
+                        my @memo_keys = @${memo_ref};
 
-                        if ( $now_time eq $memo_time ) {
-                            my $show_memo = $redis->hmget("$memo_time", 'content', 'jotter');
-                            my $content_decode = decode("utf-8", $show_memo->[0]);
-                            $msg->send("Jotter: $show_memo->[1]"." Memo-Time: $memo_time"); 
-                            $msg->send("Memo: $content_decode");
+                        given ($now_time) {
+                        when ( /^\d\d\d\d\-\d\d\-\d\d\-09:00$/ ) { $msg->send("$gm_msg"); }
+                        when ( /^\d\d\d\d\-\d\d\-\d\d\-12:00$/ ) { $msg->send("$ga_msg"); }
+                        when ( /^\d\d\d\d\-\d\d\-\d\d\-18:00$/ ) { $msg->send("$gn_msg"); }
+                        default { $memo_time = 'wrong' }
+                        }
+
+                        foreach my $memo_key ( @memo_keys ) {
+                            if ( $now_time eq $memo_key ) {
+                                my $show_memo = $redis->hmget("memo_log", "$memo_key");
+                                my $show_memo_decode = decode("utf-8", $show_memo->[0]);
+                                $msg->send($show_memo_decode);
+                            }
                         }
                     }
                 );
