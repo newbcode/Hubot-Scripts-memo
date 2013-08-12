@@ -90,7 +90,7 @@ sub load {
                             if ( $now_time eq $memo_key ) {
                                 my $show_memo = $redis->hmget("memo_log", "$memo_key");
                                 my $show_memo_decode = decode("utf-8", $show_memo->[0]);
-                                $msg->send($show_memo_decode);
+                                $msg->send("\n", split /\n/, $show_memo_decode);
                             }
                         }
                     }
