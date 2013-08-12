@@ -9,6 +9,7 @@ use Data::Printer;
 use DateTime;
 use AnyEvent::DateTime::Cron;
 use RedisDB;
+use Text::ASCIITable;
 
 sub load {
     my ( $class, $robot ) = @_;
@@ -17,6 +18,7 @@ sub load {
     my $redis = RedisDB->new(host => 'localhost', port => 6379);
     my $flag = 'off';
     my $memo_time;
+    my $jotter;
 
     $robot->hear(
         qr/^memo (.*?) (.+)/i,
@@ -24,7 +26,7 @@ sub load {
         sub {
             my $msg = shift;
 
-            my $jotter = $msg->message->user->{name};
+            $jotter = $msg->message->user->{name};
             my $reserv_time = $msg->match->[0];
             my $user_memo = $msg->match->[1];
 
@@ -47,7 +49,7 @@ sub load {
                 $msg->send( "Time format is wrong!");
             }
             else {
-                $redis->hmset("memo_log", "$memo_time", "Jotter: $jotter Time:$memo_time\nMemo: $user_memo");
+                $redis->hmset("memo_log", "$memo_time", "$user_memo");
                 $msg->send('Save Memo has been completed!');
             }
             $redis->bgsave;
@@ -62,7 +64,7 @@ sub load {
             
                     my $gm_msg = 'Good moring Seoul.pm !';
                     my $ga_msg = '다들 맛점 하세욤 ♥';
-                    my $gn_msg = 'Come Home Hurry Up !!!';
+                    my $gn_msg = 'ComeBack Home Hurry Up !!!';
 
                     $msg->send('It has been started memobot viewer ...');
 
@@ -88,11 +90,17 @@ sub load {
 
                         foreach my $memo_key ( @memo_keys ) {
                             if ( $now_time eq $memo_key ) {
+                                my $table = Text::ASCIITable->new({ 
+                                        headingText => 'Memo - Viewer', 
+                                        utf8        => 0,
+                                });
+
                                 my $show_memo = $redis->hmget("memo_log", "$memo_key");
                                 my $show_memo_decode = decode("utf-8", $show_memo->[0]);
-                                $msg->send('=============[Memo]===========');
-                                $msg->send("\n", split /\n/, $show_memo_decode);
-                                $msg->send('=============[End]============');
+
+                                $table->setCols("Jotter- $jotter / Time- $memo_key");
+                                $table->addRow("$show_memo_decode");
+                                $msg->send("\n", split /\n/, $table);
                             }
                         }
                     }
