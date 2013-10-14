@@ -62,9 +62,9 @@ sub load {
             sub {
                     my $msg = shift;
             
-                    my $gm_msg = 'Good moring Seoul.pm !';
-                    my $ga_msg = '다들 맛점 하세욤 ♥';
-                    my $gn_msg = 'ComeBack Home Hurry Up !!!';
+                    my $gm_msg = '좋은아침 입니다 서울.pm ascii GM';
+                    my $ga_msg = '맛점 하세욤♥  ascii GA';
+                    my $gn_msg = '다들 칼퇴 하셨으면 좋겠습니다! ascii GN';
 
                     $msg->send('It has been started memobot viewer ...');
 
